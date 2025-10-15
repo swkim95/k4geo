@@ -1,0 +1,16 @@
+universe    = vanilla
+executable  = run_DRC_20GeV_elec_fastSim.sh
+arguments   = $(Process)
+
+request_memory = 4096 MB
+
+should_transfer_files = YES
+when_to_transfer_output = ON_EXIT
+
+transfer_input_files = run_DRC_20GeV_elec_fastSim.sh, SteeringFile_INCREADIBLE_v01_20GeV_elec.py
+log      = /u/user/swkim/KEY4HEP/2025/for_intern_recipe/k4geo/example/log_condor/log/l_$(Process).log
+output   = /u/user/swkim/KEY4HEP/2025/for_intern_recipe/k4geo/example/log_condor/out/o_$(Process).log
+error    = /u/user/swkim/KEY4HEP/2025/for_intern_recipe/k4geo/example/log_condor/err/e_$(Process).log
+
+JobBatchName = run_INCREADIBLE_20GeV_elec
+queue 50

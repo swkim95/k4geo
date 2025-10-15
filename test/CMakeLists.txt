@@ -229,3 +229,16 @@ ADD_TEST(
             "${PROJECT_SOURCE_DIR}/FCCee"
             "${PROJECT_SOURCE_DIR}/utils/IdenticalFiles_ToBeIgnored.txt"
 )
+
+
+#--------------------------------------------------
+# Test for Fiber DRC
+#--------------------------------------------------
+# test for readDRC
+ADD_EXECUTABLE(readDRC src/readDRC.cpp)
+target_link_libraries(readDRC PRIVATE lcgeo EDM4HEP::edm4hep podio::podioRootIO)
+INSTALL( TARGETS readDRC DESTINATION bin )
+
+ADD_EXECUTABLE(readDRC_fullOpt src/readDRC_fullOpt.cpp)
+target_link_libraries(readDRC_fullOpt PRIVATE lcgeo EDM4HEP::edm4hep podio::podioRootIO)
+INSTALL( TARGETS readDRC_fullOpt DESTINATION bin )

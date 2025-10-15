@@ -46,7 +46,7 @@ void ddDRcalo::DRconstructor::construct() {
   initiateFibers();
 
   implementTowers(fX_barrel, fParamBarrel, AssemblyTubeVol);
-  implementTowers(fX_endcap, fParamEndcap, AssemblyTubeVol);
+  // implementTowers(fX_endcap, fParamEndcap, AssemblyTubeVol);
 
   // the following code is actually not a reflection, but a rotation
   // since reflecting intersection/subtraction solid is currently not possible
@@ -60,7 +60,7 @@ void ddDRcalo::DRconstructor::construct() {
 }
 
 void ddDRcalo::DRconstructor::initiateFibers() {
-  for (int idx = 1; idx <= 4000; idx++) {
+  for (int idx = 1; idx <= 5000; idx++) {
     double length = 0.05 * dd4hep::cm * idx; // fiber with length interval of 0.5 mm
 
     fFiberEnvVec.push_back(dd4hep::Tube(0., fX_cladC.rmax(), length / 2.));

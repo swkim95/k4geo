@@ -4,7 +4,7 @@ from g4units import mm, GeV, MeV
 SIM = DD4hepSimulation()
 
 ## The compact XML file, or multiple compact files, if the last one is the closer.
-SIM.compactFile = ["../FCCee/IDEA/compact/IDEA_o1_v03/IDEA_o1_v03.xml"]
+SIM.compactFile = ["../FCCee/INCREADIBLE/compact/INCREADIBLE_v01/FiberDualReadoutCalo_INCREADIBLE_o1_v1.xml"]
 ## Lorentz boost for the crossing angle, in radian!
 SIM.crossingAngleBoost = 0.0
 SIM.enableDetailedShowerMode = False
@@ -18,7 +18,7 @@ SIM.macroFile = ""
 ## number of events to simulate, used in batch mode
 SIM.numberOfEvents = 10
 ## Outputfile from the simulation: .slcio, edm4hep.root and .root output files are supported
-SIM.outputFile = "testIDEA_o1_v03.root"
+# SIM.outputFile = "/afs/cern.ch/user/s/sungwon/cernbox/KEY4HEP/2025/for_perf_check_after_geo_change/new_geo/IDEA_o1_v03_newGeo_1kEvt_10GeV_electron_fullOptSim.root"
 ## Physics list to use in simulation
 SIM.physicsList = "FTFP_BERT"
 ## Verbosity use integers from 1(most) to 7(least) verbose
@@ -112,6 +112,7 @@ SIM.action.event = []
 ##
 ##       SIM.action.mapActions['tpc'] = "TPCSDAction"
 ##
+# SIM.action.mapActions["DRcalo"] = ( "DRCaloSDAction", {"skipScint": True} )
 SIM.action.mapActions["DRcalo"] = "DRCaloSDAction"
 
 ##  set the default run action
@@ -231,7 +232,7 @@ SIM.geometry.enablePrintPlacements = False
 SIM.geometry.enablePrintSensitives = False
 
 ## configure regex SD
-SIM.geometry.regexSensitiveDetector["DRcalo"] = {"Match": ["(core|clad)"], "OutputLevel": 3}
+# SIM.geometry.regexSensitiveDetector["DRcalo"] = {"Match": ["(core|clad)"], "OutputLevel": 3}
 
 ################################################################################
 ## Configuration for the GuineaPig InputFiles
@@ -250,6 +251,7 @@ SIM.guineapig.particlesPerEvent = "-1"
 
 ##  direction of the particle gun, 3 vector
 SIM.gun.direction = (1.0, 0.1, 0.1)
+# SIM.gun.direction = (1.0, 0.1, 0.109)
 
 ## choose the distribution of the random direction for theta
 ##
@@ -267,7 +269,7 @@ SIM.gun.distribution = None
 ## Total energy (including mass) for the particle gun.
 ##
 ## If not None, it will overwrite the setting of momentumMin and momentumMax
-SIM.gun.energy = 10.0 * GeV
+SIM.gun.energy = 20.0 * GeV
 
 ## Maximal pseudorapidity for random distibution (overrides thetaMin)
 SIM.gun.etaMax = None
@@ -492,7 +494,8 @@ SIM.part.printStartTracking = False
 SIM.part.saveProcesses = ["Decay"]
 
 ## Optionally enable an extended Particle Handler
-SIM.part.userParticleHandler = "Geant4TCUserParticleHandler"
+# SIM.part.userParticleHandler = "Geant4TCUserParticleHandler"
+SIM.part.userParticleHandler = ""
 
 
 ################################################################################
@@ -616,11 +619,18 @@ def setupOpticalPhysics(kernel):
     cerenkov.enableUI()
     seq.adopt(cerenkov)
 
+    scint = PhysicsList(kernel, 'Geant4ScintillationPhysics/ScintillationPhys')
+    scint.VerboseLevel = 1
+    scint.TrackSecondariesFirst = True
+    scint.BoundaryInvokeSD = True
+    scint.enableUI()
+    seq.adopt(scint)
+
     opt = PhysicsList(kernel, "Geant4OpticalPhotonPhysics/OpticalGammaPhys")
     opt.addParticleConstructor("G4OpticalPhoton")
     opt.VerboseLevel = 1
     # set BoundaryInvokeSD to true when using DRC wafer as the SD
-    # opt.BoundaryInvokeSD = True
+    opt.BoundaryInvokeSD = True
     opt.enableUI()
     seq.adopt(opt)
 
@@ -654,7 +664,7 @@ def setupDRCFastSim(kernel):
 
 
 # turn-on fastsim if the skipScint option of the SD is set to false
-# SIM.physics.setupUserPhysics(setupDRCFastSim)
+SIM.physics.setupUserPhysics(setupDRCFastSim)
 
 ################################################################################
 ## Properties for the random number generator
