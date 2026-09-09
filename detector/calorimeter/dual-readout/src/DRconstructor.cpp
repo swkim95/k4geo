@@ -1,5 +1,7 @@
 #include "DRconstructor.h"
 
+#include "CaloRegionFlags.h"
+
 ddDRcalo::DRconstructor::DRconstructor(xml_det_t& x_det)
     : fX_det(x_det),
       // no default initializer for xml_comp_t
@@ -44,8 +46,14 @@ void ddDRcalo::DRconstructor::construct() {
 
   initiateFibers();
 
-  implementTowers(fX_barrel, fParamBarrel, AssemblyTubeVol);
-  implementTowers(fX_endcap, fParamEndcap, AssemblyTubeVol);
+  // Optional global switches (set in DectDimensions_IDEA_o3_v01.xml) to build only
+  // the barrel or only the endcap of the fiber DRC, e.g. for barrel-only / endcap-only
+  // detector variants. Absent in other compact files, which build both by default.
+  const bool buildBarrel = k4geo::caloRegionEnabled(*fDescription, "calo_construct_barrel");
+  const bool buildEndcap = k4geo::caloRegionEnabled(*fDescription, "calo_construct_endcap");
+
+  implementTowers(fX_barrel, fParamBarrel, AssemblyTubeVol, buildBarrel);
+  implementTowers(fX_endcap, fParamEndcap, AssemblyTubeVol, buildEndcap);
 
   // the following code is actually not a reflection, but a rotation
   // since reflecting intersection/subtraction solid is currently not possible
@@ -70,47 +78,54 @@ void ddDRcalo::DRconstructor::initiateFibers() {
 }
 
 void ddDRcalo::DRconstructor::implementTowers(xml_comp_t& x_theta, dd4hep::DDSegmentation::DRparamBase_k4geo* param,
-                                              dd4hep::Volume& AssemblyBoxVol) {
+                                              dd4hep::Volume& AssemblyBoxVol, bool build) {
   double currentTheta = x_theta.theta();
   int towerNo = x_theta.start();
-  for (xml_coll_t x_dThetaColl(x_theta, _U(deltatheta)); x_dThetaColl; ++x_dThetaColl, ++towerNo) {
-    xml_comp_t x_deltaTheta = x_dThetaColl;
 
-    // always use RHS for the reference
-    param->SetIsRHS(true);
-    param->SetDeltaTheta(x_deltaTheta.deltatheta());
+  // When 'build' is false (partial-calorimeter construction), no towers are placed
+  // and towerNo stays at its starting value, so the bookkeeping calls below still
+  // run and mark this region as "filled" with zero towers, keeping the segmentation
+  // in a consistent state.
+  if (build) {
+    for (xml_coll_t x_dThetaColl(x_theta, _U(deltatheta)); x_dThetaColl; ++x_dThetaColl, ++towerNo) {
+      xml_comp_t x_deltaTheta = x_dThetaColl;
 
-    double currentToC = currentTheta + x_deltaTheta.deltatheta() / 2.;
-    currentTheta += x_deltaTheta.deltatheta();
-    param->SetThetaOfCenter(currentToC);
-    param->SetCurrentTowerNum(towerNo);
-    param->init();
+      // always use RHS for the reference
+      param->SetIsRHS(true);
+      param->SetDeltaTheta(x_deltaTheta.deltatheta());
 
-    dd4hep::Trap tower(x_theta.height() / 2., 0., 0., param->GetH1(), param->GetBl1(), param->GetTl1(), 0.,
-                       param->GetH2(), param->GetBl2(), param->GetTl2(), 0.);
+      double currentToC = currentTheta + x_deltaTheta.deltatheta() / 2.;
+      currentTheta += x_deltaTheta.deltatheta();
+      param->SetThetaOfCenter(currentToC);
+      param->SetCurrentTowerNum(towerNo);
+      param->init();
 
-    dd4hep::Volume towerVol("tower", tower, fDescription->material(x_theta.materialStr()));
-    towerVol.setVisAttributes(*fDescription, x_theta.visStr());
+      dd4hep::Trap tower(x_theta.height() / 2., 0., 0., param->GetH1(), param->GetBl1(), param->GetTl1(), 0.,
+                         param->GetH2(), param->GetBl2(), param->GetTl2(), 0.);
 
-    implementFibers(x_theta, towerVol, tower, param);
+      dd4hep::Volume towerVol("tower", tower, fDescription->material(x_theta.materialStr()));
+      towerVol.setVisAttributes(*fDescription, x_theta.visStr());
 
-    xml_comp_t x_wafer(fX_sipmDim.child(_Unicode(sipmWafer)));
+      implementFibers(x_theta, towerVol, tower, param);
 
-    // Photosensitive wafer
-    dd4hep::Trap sipmWaferBox(x_wafer.height() / 2., 0., 0., param->GetH2(), param->GetBl2(), param->GetTl2(), 0.,
-                              param->GetH2(), param->GetBl2(), param->GetTl2(), 0.);
-    dd4hep::Volume sipmWaferVol("sipmWafer", sipmWaferBox, fDescription->material(x_wafer.materialStr()));
-    if (fVis)
-      sipmWaferVol.setVisAttributes(*fDescription, x_wafer.visStr());
-    dd4hep::SkinSurface(*fDescription, *fDetElement, "SiPMSurf_Tower" + std::to_string(towerNo), *fSipmSurf,
-                        sipmWaferVol);
+      xml_comp_t x_wafer(fX_sipmDim.child(_Unicode(sipmWafer)));
 
-    if (x_wafer.isSensitive()) {
-      sipmWaferVol.setSensitiveDetector(*fSensDet);
-    }
+      // Photosensitive wafer
+      dd4hep::Trap sipmWaferBox(x_wafer.height() / 2., 0., 0., param->GetH2(), param->GetBl2(), param->GetTl2(), 0.,
+                                param->GetH2(), param->GetBl2(), param->GetTl2(), 0.);
+      dd4hep::Volume sipmWaferVol("sipmWafer", sipmWaferBox, fDescription->material(x_wafer.materialStr()));
+      if (fVis)
+        sipmWaferVol.setVisAttributes(*fDescription, x_wafer.visStr());
+      dd4hep::SkinSurface(*fDescription, *fDetElement, "SiPMSurf_Tower" + std::to_string(towerNo), *fSipmSurf,
+                          sipmWaferVol);
 
-    for (int nPhi = 0; nPhi < x_theta.nphi(); nPhi++) {
-      placeAssembly(param, AssemblyBoxVol, towerVol, sipmWaferVol, towerNo, nPhi);
+      if (x_wafer.isSensitive()) {
+        sipmWaferVol.setSensitiveDetector(*fSensDet);
+      }
+
+      for (int nPhi = 0; nPhi < x_theta.nphi(); nPhi++) {
+        placeAssembly(param, AssemblyBoxVol, towerVol, sipmWaferVol, towerNo, nPhi);
+      }
     }
   }
 

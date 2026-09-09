@@ -10,6 +10,7 @@
 #include "DD4hep/Volumes.h"
 #include "DDRec/DetectorData.h"
 #include "TGeoTrd2.h"
+#include "CaloRegionFlags.h"
 #include "detectorSegmentations/SCEPCal_MainSegmentationHandle_k4geo.h"
 #include <bitset>
 #include <unordered_map>
@@ -640,12 +641,18 @@ static dd4hep::Ref_t create_detector_SCEPCal_MainLayer(dd4hep::Detector& theDete
   const int GAMMA_LOAD_END = dimXML.attr<int>(_Unicode(gamma_load_end));
 
   const int BARREL_SYSTEM_NO = barrelXML.attr<int>(_Unicode(system));
-  const bool CONSTRUCT_BARREL = barrelXML.attr<bool>(_Unicode(construct));
+  // ANDed with the optional global "calo_construct_barrel" switch (used by option 3
+  // to build only the barrel or only the endcap of both the crystal ECAL and the
+  // fiber DRC at once). Absent in other compact files, which keep the XML-only
+  // per-detector "construct" attribute as the sole switch.
+  const bool CONSTRUCT_BARREL =
+      barrelXML.attr<bool>(_Unicode(construct)) && k4geo::caloRegionEnabled(theDetector, "calo_construct_barrel");
   const int BARREL_PHI_START = 0;
   const int BARREL_PHI_END = PHI_SEGMENTS;
 
   const int ENDCAP_SYSTEM_NO = endcapXML.attr<int>(_Unicode(system));
-  const bool CONSTRUCT_ENDCAP = endcapXML.attr<bool>(_Unicode(construct));
+  const bool CONSTRUCT_ENDCAP =
+      endcapXML.attr<bool>(_Unicode(construct)) && k4geo::caloRegionEnabled(theDetector, "calo_construct_endcap");
   const int ENDCAP_PHI_START = 0;
   const int ENDCAP_PHI_END = PHI_SEGMENTS;
 

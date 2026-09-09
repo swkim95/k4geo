@@ -28,7 +28,7 @@ public:
 private:
   void initiateFibers();
   void implementTowers(xml_comp_t& x_theta, dd4hep::DDSegmentation::DRparamBase_k4geo* param,
-                       dd4hep::Volume& AssemblyBoxVol);
+                       dd4hep::Volume& AssemblyBoxVol, bool build);
   void placeAssembly(dd4hep::DDSegmentation::DRparamBase_k4geo* param, dd4hep::Volume& AssemblyBoxVol,
                      dd4hep::Volume& towerVol, dd4hep::Volume& sipmWaferVol, int towerNo, int nPhi, bool isRHS = true);
   void implementFibers(xml_comp_t& x_theta, dd4hep::Volume& towerVol, dd4hep::Trap& trap,
