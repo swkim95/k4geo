@@ -3,6 +3,7 @@
 //         Princeton University
 //===============================
 
+#include "CaloRegionFlags.h"
 #include "DD4hep/DetFactoryHelper.h"
 #include "DD4hep/Detector.h"
 #include "DD4hep/DetectorTools.h"
@@ -10,7 +11,6 @@
 #include "DD4hep/Volumes.h"
 #include "DDRec/DetectorData.h"
 #include "TGeoTrd2.h"
-#include "CaloRegionFlags.h"
 #include "detectorSegmentations/SCEPCal_MainSegmentationHandle_k4geo.h"
 #include <bitset>
 #include <unordered_map>
