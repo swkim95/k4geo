@@ -1,0 +1,106 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<lccdd xmlns:compact="http://www.lcsim.org/schemas/compact/1.0"
+  xmlns:xs="http://www.w3.org/2001/XMLSchema"
+  xs:noNamespaceSchemaLocation="http://www.lcsim.org/schemas/compact/1.0/compact.xsd">
+
+  <info name="IDEA_o3_v01_DRConly_noField"
+    title="FCCee IDEA option 3 detector geometry, DRC-only calibration variant (no SCEPCal, no solenoid, no field)"
+    author="Option 3 assembled from IDEA_o2_v01 (SCEPCal crystal ECAL by Wonyong Chung, vertex/silicon wrapper by Armin Ilg, DCH by Alvaro Tolosa-Delgado) with the hadronic calorimeter replaced by the Korean fiber Dual-Readout Calorimeter (Sanghyun Ko, Sungwon Kim)"
+    url="no"
+    status="development"
+    version="o3_v01">
+    <comment>
+      Derived from IDEA_o3_v01.xml for fiber-DRC-only calibration runs: the SCEPCal
+      crystal ECAL and the solenoid are REMOVED (their &lt;include&gt; lines omitted)
+      so a calibration beam aimed at the fiber DRC does not lose energy in/get
+      smeared by the ECAL or the solenoid coil material in front of it. The magnetic
+      field is also zeroed (both inner_field/outer_field), matching
+      IDEA_o3_v01_noField.xml, so the straight-line beam isn't bent either.
+      Everything else (beampipe, vertex, drift chamber, silicon wrapper, endcap plate
+      absorber, fiber DRC, muon system) is unchanged from IDEA_o3_v01.xml.
+      Removing the Solenoid include does not break the &lt;fields&gt; block below or any
+      DectDimensions_IDEA_o3_v01.xml constant references (Solenoid_Coil_radius etc.
+      are plain XML constants, independent of whether the solenoid geometry volume
+      itself is instantiated) -- the field is analytic (region-based), not tied to
+      the solenoid's physical volume.
+    </comment>
+  </info>
+
+  <include ref="${DD4hepINSTALL}/DDDetectors/compact/detector_types.xml" />
+
+  <includes>
+    <gdmlFile  ref="../IDEA_o1_v03/elements_o1_v01.xml"/>
+    <gdmlFile  ref="../IDEA_o2_v01/materials_o2_v01.xml"/>
+  </includes>
+
+  <define>
+    <constant name="world_size" value="25*m"/>
+    <constant name="world_x" value="world_size"/>
+    <constant name="world_y" value="world_size"/>
+    <constant name="world_z" value="world_size"/>
+  </define>
+
+  <!-- Import dimensions -->
+  <include ref="DectDimensions_IDEA_o3_v01.xml"/>
+
+  <!-- Import visualization (color) definitions -->
+  <include ref="display.xml"/>
+
+  <!-- Import accelerator components -->
+  <!-- shape based model of the beam pipe -->
+  <include ref="../../../MDI/compact/MDI_o1_v00/Beampipe_o4_v05.xml" />
+  <include ref="../../../MDI/compact/MDI_o1_v00/BeamInstrumentation_o1_v01.xml" />
+
+  <include ref="../IDEA_o1_v03/LumiCal_o1_v01.xml"/>
+
+  <!-- Import vertex -->
+  <include ref="../IDEA_o1_v04/VertexComplete_o1_v04.xml"/>
+
+  <!-- Import drift chamber -->
+  <include ref="../IDEA_o1_v03/DriftChamber_o1_v02.xml"/>
+
+  <!-- Import silicon wrapper -->
+  <include ref="../IDEA_o1_v04/SiliconWrapper_o1_v02.xml"/>
+
+  <!-- Solenoid REMOVED for this DRC-only calibration variant (see info/comment above) -->
+  <!-- <include ref="../IDEA_o1_v03/Solenoid_o1_v01.xml"/> -->
+
+  <!-- Import Endcap plate absorber -->
+  <include ref="../IDEA_o1_v03/EndPlateAbsorber_o1_v01.xml"/>
+
+  <!-- SCEPCal crystal ECAL REMOVED for this DRC-only calibration variant (see info/comment above) -->
+  <!-- <include ref="../IDEA_o2_v01/SCEPCal_o1_v01.xml"/> -->
+
+  <!-- Import Korean fiber-based dual-readout calorimeter (hadronic), replacing the
+       option-2 tube-based barrel+endcap. Self-contained (materials, readout,
+       segmentation); its size is driven by the FiberDRCalo_* constants and DRC*
+       vis attributes defined in DectDimensions_IDEA_o3_v01.xml / display.xml. -->
+  <include ref="../IDEA_o1_v03/FiberDualReadoutCalo_o1_v01.xml"/>
+
+  <!-- Import muon system -->
+  <include ref="../IDEA_o1_v03/MuonSystem_o1_v01.xml"/>
+
+  <plugins>
+    <plugin name="DD4hepVolumeManager"/>
+    <plugin name="InstallSurfaceManager"/>
+  </plugins>
+
+  <fields>
+    <!-- Magnetic field disabled (see info/comment above), reduced to a physically
+         negligible 1e-9 tesla. See IDEA_o3_v01_noField.xml's &lt;fields&gt; comment
+         for the full story: this magnitude choice does NOT fix the Digi-level
+         "Helix, invalid parameter: bField 0" crash (that needs
+         DIGI_SKIP_HELIX_TRACKING=1 in run_digi_reco.py); it's just kept tiny here
+         for physical cleanliness. Kept as an explicit near-zero-strength solenoid
+         field element (rather than omitting &lt;fields&gt; entirely) to keep this
+         file structurally parallel to IDEA_o3_v01_noField.xml. -->
+    <field name="GlobalSolenoid" type="solenoid"
+           inner_field="1e-9*tesla"
+           outer_field="1e-9*tesla"
+           zmax="1.2 * Solenoid_Coil_half_length"
+           outer_radius="Solenoid_Coil_radius">
+    </field>
+
+  </fields>
+
+</lccdd>

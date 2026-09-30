@@ -1,0 +1,109 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<lccdd xmlns:compact="http://www.lcsim.org/schemas/compact/1.0"
+  xmlns:xs="http://www.w3.org/2001/XMLSchema"
+  xs:noNamespaceSchemaLocation="http://www.lcsim.org/schemas/compact/1.0/compact.xsd">
+
+  <info name="IDEA_o3_v01_noField"
+    title="FCCee IDEA option 3 detector geometry master file (magnetic field disabled)"
+    author="Option 3 assembled from IDEA_o2_v01 (SCEPCal crystal ECAL by Wonyong Chung, vertex/silicon wrapper by Armin Ilg, DCH by Alvaro Tolosa-Delgado) with the hadronic calorimeter replaced by the Korean fiber Dual-Readout Calorimeter (Sanghyun Ko, Sungwon Kim)"
+    url="no"
+    status="development"
+    version="o3_v01">
+    <comment>
+      Identical to IDEA_o3_v01.xml (geometry unchanged), EXCEPT the solenoid field
+      strength is zeroed (both inner_field and outer_field set to 0*tesla). Used for
+      single-particle detector-calibration runs where the beam must travel in a
+      straight line to a known tower/crystal, since even the small outer return field
+      would otherwise bend charged tracks before they reach the calorimeters.
+      See the DRC air-gap-fix / o3 calibration campaign plan for context.
+    </comment>
+  </info>
+
+  <include ref="${DD4hepINSTALL}/DDDetectors/compact/detector_types.xml" />
+
+  <includes>
+    <gdmlFile  ref="../IDEA_o1_v03/elements_o1_v01.xml"/>
+    <gdmlFile  ref="../IDEA_o2_v01/materials_o2_v01.xml"/>
+  </includes>
+
+  <define>
+    <constant name="world_size" value="25*m"/>
+    <constant name="world_x" value="world_size"/>
+    <constant name="world_y" value="world_size"/>
+    <constant name="world_z" value="world_size"/>
+  </define>
+
+  <!-- Import dimensions -->
+  <include ref="DectDimensions_IDEA_o3_v01.xml"/>
+
+  <!-- Import visualization (color) definitions -->
+  <include ref="display.xml"/>
+
+  <!-- Import accelerator components -->
+  <!-- shape based model of the beam pipe -->
+  <include ref="../../../MDI/compact/MDI_o1_v00/Beampipe_o4_v05.xml" />
+  <include ref="../../../MDI/compact/MDI_o1_v00/BeamInstrumentation_o1_v01.xml" />
+
+  <include ref="../IDEA_o1_v03/LumiCal_o1_v01.xml"/>
+
+  <!-- Import vertex -->
+  <include ref="../IDEA_o1_v04/VertexComplete_o1_v04.xml"/>
+
+  <!-- Import drift chamber -->
+  <include ref="../IDEA_o1_v03/DriftChamber_o1_v02.xml"/>
+
+  <!-- Import silicon wrapper -->
+  <include ref="../IDEA_o1_v04/SiliconWrapper_o1_v02.xml"/>
+
+  <!-- Import solenoid -->
+  <include ref="../IDEA_o1_v03/Solenoid_o1_v01.xml"/>
+
+  <!-- Import Endcap plate absorber -->
+  <include ref="../IDEA_o1_v03/EndPlateAbsorber_o1_v01.xml"/>
+
+  <!-- Import dual-readout segmented crystal calorimeter (EM), unchanged from option 2 -->
+  <include ref="../IDEA_o2_v01/SCEPCal_o1_v01.xml"/>
+
+  <!-- Import Korean fiber-based dual-readout calorimeter (hadronic), replacing the
+       option-2 tube-based barrel+endcap. Self-contained (materials, readout,
+       segmentation); its size is driven by the FiberDRCalo_* constants and DRC*
+       vis attributes defined in DectDimensions_IDEA_o3_v01.xml / display.xml. -->
+  <include ref="../IDEA_o1_v03/FiberDualReadoutCalo_o1_v01.xml"/>
+
+  <!-- Import muon system -->
+  <include ref="../IDEA_o1_v03/MuonSystem_o1_v01.xml"/>
+
+  <plugins>
+    <plugin name="DD4hepVolumeManager"/>
+    <plugin name="InstallSurfaceManager"/>
+  </plugins>
+
+  <fields>
+    <!-- Magnetic field disabled for calibration runs (see IDEA_o3_v01_noField info
+         comment above): both inner and outer field reduced to a physically
+         negligible 1e-9 tesla (not exactly 0*tesla, just for cleanliness; a
+         literal 0*tesla is not actually required). Geometry-only change relative
+         to IDEA_o3_v01.xml's &lt;fields&gt; block (which uses SolenoidField=2T inner,
+         -1.7T outer).
+
+         NOTE: the Digi-level TracksFromGenParticles algorithm
+         (example/condor/common/run_digi_reco.py) reads the field from this compact
+         file at runtime and helix-parameterizes GenParticle trajectories with it;
+         we found it throws "Helix, invalid parameter: bField 0" and aborts the
+         whole event loop regardless of whether the field here is 1e-9 or 1e-3
+         tesla, so this is not simply a magnitude/precision issue on our side;
+         changing this constant will not fix it. The actual fix is
+         DIGI_SKIP_HELIX_TRACKING=1 (set by the calibration condor Digi wrappers),
+         which skips tracksFromGenParticles/plotTrackDCHHitDistances/dNdxFromTracks
+         entirely in run_digi_reco.py; see that file's comment for why this is
+         safe (nothing else depends on their output). -->
+    <field name="GlobalSolenoid" type="solenoid"
+           inner_field="1e-9*tesla"
+           outer_field="1e-9*tesla"
+           zmax="1.2 * Solenoid_Coil_half_length"
+           outer_radius="Solenoid_Coil_radius">
+    </field>
+
+  </fields>
+
+</lccdd>
