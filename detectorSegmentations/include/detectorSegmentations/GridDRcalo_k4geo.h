@@ -35,6 +35,7 @@ namespace DDSegmentation {
     virtual void neighbours(const CellID& cellID, std::set<CellID>& neighbours) const override;
 
     void setGridSize(double grid) { m_gridSize = grid; }
+    double getGridSize() const { return m_gridSize; }
     void setSipmSize(double sipm) { m_sipmSize = sipm; }
 
     // remove different type of channels in the neighborhood set if set to true

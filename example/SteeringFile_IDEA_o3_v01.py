@@ -1,3 +1,17 @@
+## Steering file for IDEA_o3_v01, "no optical" mode (the fastest of the three DRC modes).
+##
+## The fiber dual-readout calorimeter can be simulated in three ways; the two other modes
+## have their own steering files next to this one:
+##
+##   * no optical  (this file)                    : DRCaloSDAction with skipScint=true. The
+##     fibers are the sensitive detector. Scintillation photons are never produced, the
+##     energy deposited in the scintillating fibers is summed instead; Cherenkov photons are
+##     produced but transported to the fiber end by the shortcut built into the SD action.
+##   * fast sim    (SteeringFile_IDEA_o3_v01_fastSim.py) : the SiPM wafer is the sensitive
+##     detector, scintillation is enabled, and Geant4DRCFiberModel teleports optical photons
+##     that undergo repetitive total internal reflection to the end of the fiber.
+##   * full sim    (SteeringFile_IDEA_o3_v01_fullSim.py) : same as fast sim, but every
+##     optical photon is tracked step by step up to the photo-sensor.
 from DDSim.DD4hepSimulation import DD4hepSimulation
 from g4units import cm, mm, GeV, MeV
 
@@ -108,15 +122,13 @@ SIM.action.calorimeterSDTypes = ["calorimeter", "DRcaloSiPMSD"]
 SIM.action.mapActions["SCEPCal_MainLayer"] = "SCEPCal_MainSDAction"
 SIM.action.mapActions["SCEPCal_TimingLayer"] = "SCEPCal_TimingSDAction"
 
-## Do not add filter to crystal calorimeter (e.g. edep1kev)
-## otherwise optical photons will not be processed by its SDAction
-## and corresponding collections are empty
-SIM.filter.mapDetFilter["SCEPCal_MainLayer"] = ""
-SIM.filter.mapDetFilter["SCEPCal_TimingLayer"] = ""
-
-## Replace SDAction for the Korean fiber Dual-Readout Calorimeter (hadronic, option 3)
-SIM.action.mapActions["DRcalo"] = "DRCaloSDAction"
-## Configure the regexSD for DRcalo: only the fiber cores/claddings are sensitive
+## Replace SDAction for the Korean fiber Dual-Readout Calorimeter (hadronic, option 3).
+## skipScint=true: no scintillation photon is produced, the energy deposited in the
+## scintillating fibers is summed into the "<readout>_scint" collection instead, and
+## Cherenkov photons are counted in the fibers using the transport shortcut of the SD.
+SIM.action.mapActions["DRcalo"] = ("DRCaloSDAction", {"skipScint": "true"})
+## Configure the regexSD for DRcalo: with skipScint=true the fiber cores/claddings are the
+## sensitive volumes (the SiPM wafer is not sensitive in this mode)
 SIM.geometry.regexSensitiveDetector["DRcalo"] = {"Match": ["(core|clad)"], "OutputLevel": 3}
 
 ##  set the default run action
@@ -193,6 +205,11 @@ SIM.filter.filters = {
 
 ##  a map between patterns and filter objects, using patterns to attach filters to sensitive detector
 SIM.filter.mapDetFilter = {}
+
+## Do not add a filter to the crystal calorimeter (e.g. edep1kev), otherwise optical photons
+## are not processed by its SDAction and the corresponding collections stay empty
+SIM.filter.mapDetFilter["SCEPCal_MainLayer"] = ""
+SIM.filter.mapDetFilter["SCEPCal_TimingLayer"] = ""
 
 ##  default filter for tracking sensitive detectors; this is applied if no other filter is used for a tracker
 SIM.filter.tracker = "edep1kev"
@@ -450,6 +467,27 @@ SIM.outputConfig.forceLCIO = False
 ##
 
 
+## The DRC hits (Geant4DRCalorimeter::Hit, holding the photon counts and their time/wavelength
+## structure) are not known to the standard EDM4hep writer, so the dedicated one from k4geo
+## has to be used. It also writes the regular tracker and calorimeter hits, i.e. everything
+## the standard writer produces.
+def Geant4Output2EDM4hep_DRC_plugin(dd4hepSimulation):
+    from DDG4 import EventAction, Kernel
+
+    evt_root = EventAction(
+        Kernel(), "Geant4Output2EDM4hep_DRC/" + dd4hepSimulation.outputFile, True
+    )
+    evt_root.Control = True
+    output = dd4hepSimulation.outputFile
+    evt_root.Output = output
+    evt_root.enableUI()
+    Kernel().eventAction().add(evt_root)
+    return None
+
+
+SIM.outputConfig.userOutputPlugin = Geant4Output2EDM4hep_DRC_plugin
+
+
 ################################################################################
 ## Configuration for the Particle Handler/ MCTruth treatment
 ################################################################################
@@ -592,10 +630,11 @@ SIM.physics.rejectPDGs = {
 SIM.physics.zeroTimePDGs = {17, 11, 13, 15}
 
 
-## Physics for the Korean fiber Dual-Readout Calorimeter (DRcalo): Cerenkov + optical photon
-## transport, needed for both the "core"/"clad" fibers to produce signal. Ported as-is from
-## example/SteeringFile_IDEA_o1_v03.py; TrackSecondariesFirst=True keeps the optical-photon
-## bookkeeping consistent with the DRC digitisation model.
+## Physics for the Korean fiber Dual-Readout Calorimeter (DRcalo). Only Cerenkov photons are
+## produced here: with skipScint=true the scintillating fibers are read out as a plain
+## energy deposit, so Geant4ScintillationPhysics is deliberately not added (that is what the
+## fast-sim and full-sim steering files do). BoundaryInvokeSD stays off because the SiPM
+## wafer is not the sensitive detector in this mode.
 def setupOpticalPhysics(kernel):
     from DDG4 import PhysicsList
 
@@ -620,35 +659,9 @@ def setupOpticalPhysics(kernel):
 SIM.physics.setupUserPhysics(setupOpticalPhysics)
 
 
-## Optional fast-simulation model for the DRC fibers (Geant4DRCFiberModel), bound to the
-## "FastSimOpFiberRegion" region declared in DectDimensions_IDEA_o3_v01.xml. Disabled by
-## default; uncomment to speed up optical-photon transport at the cost of using a
-## parameterised shower/photon model instead of full Geant4 tracking.
-def setupDRCFastSim(kernel):
-    from DDG4 import DetectorConstruction, Geant4, PhysicsList
-
-    geant4 = Geant4(kernel)
-    seq = geant4.detectorConstruction()
-    # Create a model for fast simulation
-    model = DetectorConstruction(kernel, str("Geant4DRCFiberModel/ShowerModel"))
-    # Mandatory model parameters
-    model.RegionName = "FastSimOpFiberRegion"
-    model.Enable = True
-    model.ApplicableParticles = ["opticalphoton"]
-    model.enableUI()
-    seq.adopt(model)
-    # Now build the physics list:
-    phys = kernel.physicsList()
-    ph = PhysicsList(kernel, str("Geant4FastPhysics/FastPhysicsList"))
-    ph.EnabledParticles = ["opticalphoton"]
-    ph.BeVerbose = True
-    ph.enableUI()
-    phys.adopt(ph)
-    phys.dump()
-
-
-# turn-on fastsim if the skipScint option of the SD is set to false
-# SIM.physics.setupUserPhysics(setupDRCFastSim)
+## The Geant4DRCFiberModel fast-simulation model is not used here: with skipScint=true the
+## equivalent transport shortcut is applied inside DRCaloSDAction itself. See
+## SteeringFile_IDEA_o3_v01_fastSim.py for the fast-simulation setup.
 
 ################################################################################
 ## Properties for the random number generator

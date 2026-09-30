@@ -35,6 +35,11 @@ private:
                        dd4hep::DDSegmentation::DRparamBase_k4geo* param);
   void implementFiber(dd4hep::Volume& towerVol, dd4hep::Position pos, int col, int row,
                       float fiberLen = 200. * dd4hep::cm);
+  // Fills the leftover space between a clipped (short) fiber's front tip and the tower's
+  // front face with DR_Air, instead of leaving it as implicit solid copper (mother material).
+  // See O3_GEOMETRY_AND_SIM_NOTES.md / DRC air-gap fix plan for the physical motivation.
+  void implementAirGap(dd4hep::Volume& towerVol, dd4hep::Trap& trap, dd4hep::Material& airMat, dd4hep::Position pos,
+                       float fiberLen, float towerHeight);
   double calculateDistAtZ(TGeoTrap* rootTrap, dd4hep::Position& pos, double* norm, double z);
   float calculateFiberLen(TGeoTrap* rootTrap, dd4hep::Position& pos, double* norm, double z1, double diff,
                           double towerHeight);

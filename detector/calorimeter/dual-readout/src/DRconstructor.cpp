@@ -204,6 +204,10 @@ void ddDRcalo::DRconstructor::implementFibers(xml_comp_t& x_theta, dd4hep::Volum
   // std::map containing the length of short fibers
   dd4hep::DDSegmentation::DRparamBase_k4geo::shortFibers shortFibers(towerHeight);
 
+  // 2026-09-29: the copper-vs-air-gap comparison (Phase 3/4, see TEST_HISTORY) showed
+  // no measurable S/C difference; air-gap fix restored to its 2026-09-24 state.
+  dd4hep::Material airMat = fDescription->material("DR_Air");
+
   for (int row = 0; row < fNumy; row++) {
     for (int column = 0; column < fNumx; column++) {
       auto localPosition = fSegmentation->localPosition(fNumx, fNumy, column, row);
@@ -256,6 +260,7 @@ void ddDRcalo::DRconstructor::implementFibers(xml_comp_t& x_theta, dd4hep::Volum
           dd4hep::Position centerPos(pos.x(), pos.y(), centerZ);
           implementFiber(towerVol, centerPos, column, row, fiberLen);
           shortFibers.addShortFibers(row, column, fiberLen);
+          implementAirGap(towerVol, trap, airMat, pos, fiberLen, towerHeight);
         }
       } // outside tower
     } // col
@@ -311,6 +316,42 @@ void ddDRcalo::DRconstructor::implementFiber(dd4hep::Volume& towerVol, dd4hep::P
     coreVol.setRegion(*fDescription, fX_det.regionStr());
     cladVol.setRegion(*fDescription, fX_det.regionStr());
   }
+}
+
+// Fills the leftover space between a clipped (short) fiber's front tip and the tower's
+// front face with air.
+//
+// Physical picture: near the tower's slanted sides, a straight cylindrical hole of the
+// fiber's radius (fX_cladC.rmax()) running parallel to the tower axis stays fully inside
+// the tower's copper only up to the z computed by calculateFiberLen() -- that is exactly
+// where the fiber (implementFiber, called just before this) already stops. Beyond that z
+// (towards the front face), the same-radius hole would start crossing the tower's own
+// slanted boundary, so a full cylindrical air volume can't be used there without leaking
+// outside the tower. We instead build a full-radius air tube spanning [-towerHeight/2,
+// towerHeight/2 - fiberLen] and intersect it with the tower's own Trap shape: the boolean
+// intersection automatically clips the tube to whatever sliver of that hole still lies
+// inside this tower's copper (shrinking to nothing right where the (x,y) position itself
+// exits the tower), giving the correct partial cross-section instead of an invalid
+// fully-cylindrical hole poking out the side.
+void ddDRcalo::DRconstructor::implementAirGap(dd4hep::Volume& towerVol, dd4hep::Trap& trap, dd4hep::Material& airMat,
+                                              dd4hep::Position pos, float fiberLen, float towerHeight) {
+  float gapLen = towerHeight - fiberLen;
+
+  // Skip negligible slivers (numerical noise / near-full-length fibers) -- avoids
+  // degenerate zero/near-zero-thickness boolean solids.
+  if (gapLen < 1.e-4 * dd4hep::cm)
+    return;
+
+  float gapCenterZ = -towerHeight / 2. + gapLen / 2.;
+
+  dd4hep::Tube airTube(0., fX_cladC.rmax(), gapLen / 2.);
+  dd4hep::IntersectionSolid airGapSolid(trap, airTube, dd4hep::Position(pos.x(), pos.y(), gapCenterZ));
+  dd4hep::Volume airGapVol("fiberAirGap", airGapSolid, airMat);
+
+  // Placed with identity transform: the boolean above already expresses the result in
+  // the trap's own frame, which is exactly towerVol's frame (trap is the same shape used
+  // to build towerVol in implementTowers()).
+  towerVol.placeVolume(airGapVol);
 }
 
 double ddDRcalo::DRconstructor::calculateDistAtZ(TGeoTrap* rootTrap, dd4hep::Position& pos, double* norm, double z) {
